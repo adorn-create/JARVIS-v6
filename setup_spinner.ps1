@@ -33,7 +33,7 @@ foreach ($frame in $script:GlobeFrames) {
         throw "Invalid globe animation frame in $globeFramesPath."
     }
     foreach ($line in $frameLines) {
-        if ($line.Length -ne 64) {
+        if ($line.Length -gt 64 -or $line -ne $line.TrimEnd()) {
             throw "Invalid globe animation frame width in $globeFramesPath."
         }
     }
@@ -68,7 +68,7 @@ try {
                 $frame = $script:GlobeFrames[$frameIndex % $script:GlobeFrames.Count]
                 $lines = $frame -split '\r?\n'
                 foreach ($line in $lines) {
-                    Write-Host ("    " + $line) -ForegroundColor Green
+                    Write-Host ("    " + $line.PadRight(64)) -ForegroundColor Green
                 }
                 Write-Host ("  J.A.R.V.I.S. // STATUS: {0}".PadRight(68) -f $Label) -ForegroundColor Cyan
                 Write-Host ("  OUTPUT HIDDEN // LOGS: logs\setup-$LogName-*.log".PadRight(68)) -ForegroundColor DarkGray
