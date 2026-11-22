@@ -47,6 +47,11 @@ def chat_completion(payload):
             "Cannot connect to Ollama at localhost:11434. Start the Ollama app "
             "or run `ollama serve`, then try again."
         ) from exc
+    except requests.Timeout as exc:
+        raise RuntimeError(
+            f"Ollama did not respond within {timeout} seconds. Try a smaller model "
+            "or increase OLLAMA_REQUEST_TIMEOUT in .env."
+        ) from exc
     if not response.ok:
         detail = response.text[:800]
         if response.status_code == 404:
@@ -100,7 +105,15 @@ def diagnostics():
             "error": str(exc),
             "next_step": "Update Ollama and retry the diagnostics.",
         }
-    installed = [str(item.get("name", "")) for item in payload.get("models", []) if isinstance(item, dict)]
+    if not isinstance(payload, dict) or not isinstance(payload.get("models"), list):
+        return {
+            "ok": False,
+            "server": "invalid response",
+            "base_url": root,
+            "error": "Ollama /api/tags returned an unexpected response format.",
+            "next_step": "Update Ollama and retry the diagnostics.",
+        }
+    installed = [str(item.get("name", "")) for item in payload["models"] if isinstance(item, dict)]
     chat_model = os.getenv("OLLAMA_MODEL", "").strip()
     vision_model = os.getenv("OLLAMA_VISION_MODEL", "").strip()
     def present(model):
