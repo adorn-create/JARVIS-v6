@@ -78,6 +78,15 @@ class ToolApprovalTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(field.entered_text, "query")
 
+    def test_ollama_diagnostics_tool_is_registered_and_dispatched(self):
+        self.assertIn("ollama_diagnostics", [
+            item["function"]["name"] for item in tools.TOOL_DEFINITIONS
+        ])
+        with patch("tools.ollama_diagnostics", return_value={"ok": True}) as check:
+            result = tools.execute("ollama_diagnostics", {})
+        check.assert_called_once_with()
+        self.assertTrue(result["ok"])
+
     def test_password_field_is_never_modified(self):
         field = FakeControl("Edit", "Password")
         field.element_info.element.CurrentIsPassword = True
