@@ -24,19 +24,7 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-if not exist .venv\Scripts\python.exe (
-  py -3.12 --version >nul 2>&1
-  if not errorlevel 1 (
-    call :run_task "Creating Python 3.12 environment" "py" "-3.12 -m venv .venv" "venv"
-  ) else (
-    py -3.11 --version >nul 2>&1
-    if errorlevel 1 (
-      echo Python 3.11 or 3.12 is required to create the virtual environment.
-      goto fail
-    )
-    call :run_task "Creating Python 3.11 environment" "py" "-3.11 -m venv .venv" "venv"
-  )
-)
+if not exist .venv\Scripts\python.exe call :create_venv
 if errorlevel 1 goto fail
 call :run_task "Updating pip" ".venv\Scripts\python.exe" "-m pip install --upgrade pip" "pip"
 if errorlevel 1 goto fail
@@ -90,6 +78,19 @@ if /i "%PULL_VISION%"=="Y" (
 exit /b 0
 :run_task
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0setup_spinner.ps1" -Label "%~1" -FilePath "%~2" -ArgumentLine "%~3" -LogName "%~4"
+exit /b %errorlevel%
+:create_venv
+set "PYTHON_SELECTOR="
+for /f "tokens=1" %%A in ('py -0p ^| findstr /i "3.12"') do set "PYTHON_SELECTOR=%%A"
+if not defined PYTHON_SELECTOR (
+  for /f "tokens=1" %%A in ('py -0p ^| findstr /i "3.11"') do set "PYTHON_SELECTOR=%%A"
+)
+if not defined PYTHON_SELECTOR (
+  echo Python 3.12 or 3.11 was not found by the Python launcher.
+  echo Run py -0p to list detected installations, then install Python 3.12.
+  exit /b 1
+)
+call :run_task "Creating Python environment with %PYTHON_SELECTOR%" "py" "%PYTHON_SELECTOR% -m venv .venv" "venv"
 exit /b %errorlevel%
 :fail
 echo Setup failed. See the error above.
