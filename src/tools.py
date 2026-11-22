@@ -414,7 +414,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "list_windows",
-            "description": "List visible windows and their titles. Window information is sent to OpenRouter.",
+            "description": "List visible windows and their titles; this information remains in the local Ollama request.",
             "parameters": {
                 "type": "object",
                 "properties": {},
@@ -426,7 +426,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "list_ui_elements",
-            "description": "List named buttons, links, and text-field positions in a visible window. This may expose window titles to OpenRouter; text entered in fields is not returned.",
+            "description": "List named buttons, links, and text-field positions in a visible window. Text entered in fields is not returned.",
             "parameters": {
                 "type": "object",
                 "properties": {"window_title": {"type": "string"}},
@@ -472,7 +472,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "inspect_screen",
-            "description": "Capture and send the screen to the configured OpenRouter vision model. Use after a UI action to verify its visible result.",
+            "description": "Capture the screen and analyze it with the local Ollama vision model. Use after a UI action to verify its visible result.",
             "parameters": {
                 "type": "object",
                 "properties": {"question": {"type": "string"}},

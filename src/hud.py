@@ -14,12 +14,14 @@ class HUD:
         on_vision,
         on_stop_speaking,
         on_toggle_wake,
+        on_toggle_face,
     ):
         self._tk_thread = threading.current_thread()
         self.on_send = on_send
         self._phase = 0
         self._mic_level = 0.0
         self._wake_enabled = False
+        self._face_enabled = False
         self.root = tk.Tk()
         self.root.title("J.A.R.V.I.S. | Desktop AI")
         self.root.geometry("960x680")
@@ -76,6 +78,14 @@ class HUD:
             font=("Segoe UI", 9),
         )
         self.metrics.pack(anchor="w", pady=(3, 0))
+        self.face_status = tk.Label(
+            title_box,
+            text="CAMERA OFF • FACE DETECTION ONLY",
+            fg="#93b9cc",
+            bg="#07111d",
+            font=("Segoe UI", 9),
+        )
+        self.face_status.pack(anchor="w", pady=(2, 0))
 
         self.log = tk.Text(
             self.root,
@@ -111,6 +121,11 @@ class HUD:
             controls,
             "WAKE WORD: OFF",
             lambda: on_toggle_wake(not self._wake_enabled),
+        )
+        self._face_button = self._button(
+            controls,
+            "FACE DETECTION: OFF",
+            lambda: on_toggle_face(not self._face_enabled),
         )
 
         mic_row = tk.Frame(self.root, bg="#07111d")
@@ -187,6 +202,31 @@ class HUD:
             text="WAKE WORD: ON" if self._wake_enabled else "WAKE WORD: OFF",
             fg="#ffd166" if self._wake_enabled else "#8ee8ff",
         )
+
+    def set_face_state(self, enabled):
+        self._face_enabled = bool(enabled)
+        self._face_button.configure(
+            text="FACE DETECTION: ON" if self._face_enabled else "FACE DETECTION: OFF",
+            fg="#ffd166" if self._face_enabled else "#8ee8ff",
+        )
+        self.set_face_status(
+            "CAMERA STARTING • FACE DETECTION ONLY"
+            if self._face_enabled
+            else "CAMERA OFF • FACE DETECTION ONLY"
+        )
+
+    def set_face_count(self, count):
+        if self._face_enabled:
+            self.set_face_status(
+                f"CAMERA ACTIVE • {int(count)} FACE(S) DETECTED"
+            )
+
+    def set_face_status(self, text):
+        text = str(text)
+        color = "#ff7585" if "ERROR" in text else "#ffd166"
+        if "OFF" in text:
+            color = "#93b9cc"
+        self.face_status.configure(text=text, fg=color)
 
     def confirm_action(self, description):
         if threading.current_thread() is self._tk_thread:

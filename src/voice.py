@@ -150,8 +150,12 @@ class WakeWordListener:
         self._thread = threading.Thread(target=self._listen, daemon=True)
         self._thread.start()
 
-    def stop(self):
+    def stop(self, wait=False, timeout=5.0):
         self._stop_event.set()
+        thread = self._thread
+        if wait and thread and thread is not threading.current_thread():
+            thread.join(timeout=max(0.0, float(timeout)))
+        return not (thread and thread.is_alive())
 
     def _listen(self):
         try:
