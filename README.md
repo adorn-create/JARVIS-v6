@@ -5,7 +5,7 @@ JARVIS uses Ollama for local chat and screen analysis, SQLite conversation histo
 ## Install
 1. Install the latest Ollama for Windows from [ollama.com/download](https://ollama.com/download). Use Ollama 0.7.0 or newer for the vision model.
 2. Double-click `SETUP.bat`.
-3. Setup offers separate opt-in pulls for the chat and vision models. Both require several GB of disk space; the vision model is about 6 GB.
+3. Setup shows an animated green globe during installs and model pulls; verbose output is saved under `logs\setup-*.log`. Y/N prompts remain visible. Setup offers separate opt-in pulls for the chat and vision models. Both require several GB of disk space; the vision model is about 6 GB.
 4. Choose `Y` to install optional voice/wake-word and desktop-control packages when prompted.
 5. Choose `Y` at the optional face-detection prompt to install OpenCV.
 6. Setup launches JARVIS. Later, use `LAUNCH.bat`.
