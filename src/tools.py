@@ -8,6 +8,7 @@ from pathlib import Path
 import psutil
 
 from memory import forget, recall, remember
+from ollama_client import diagnostics as ollama_diagnostics
 
 LOG = logging.getLogger("jarvis.actions")
 APP_ALLOWLIST = {
@@ -303,6 +304,19 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "ollama_diagnostics",
+            "description": "Check whether the local Ollama server is online and whether the configured chat and vision models are installed. Use when AI connectivity or setup is uncertain.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": False,
+            },
+        },
+    },
+
+    {
+        "type": "function",
+        "function": {
             "name": "system_status",
             "description": "Read CPU, RAM, disk, battery, and top memory-consuming processes.",
             "parameters": {
@@ -498,6 +512,8 @@ TOOL_DEFINITIONS = [
 
 
 def execute(name, args, confirm=None, progress=None):
+    if name == "ollama_diagnostics":
+        return ollama_diagnostics()
     if name == "system_status":
         return system_status()
     if name == "open_app":

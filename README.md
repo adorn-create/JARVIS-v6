@@ -40,6 +40,7 @@ JARVIS_WAKE_THRESHOLD=0.5
 
 ## Features
 - Local chat with the configured Ollama model and bounded tool calling
+- Ollama readiness diagnostics: local server reachability and configured chat/vision model availability
 - Multi-step planning, progress updates, and explicit error reporting
 - SQLite conversation history and user-approved saved preferences/tasks
 - Search for older conversation context and saved memory; ask JARVIS to forget a saved item
@@ -63,9 +64,11 @@ JARVIS_WAKE_THRESHOLD=0.5
 - Keep `.env` private. Existing OpenRouter settings in an older `.env` are ignored by this build.
 
 ## Troubleshooting
+- Ask JARVIS to `check Ollama` or `diagnose the AI connection` to run local server/model checks and receive specific next steps.
 - If JARVIS cannot connect, start the Ollama Windows app or run `ollama serve`, then check `ollama list`.
 - If a model is missing, use the commands in Install. The Hugging Face model name must match `OLLAMA_MODEL`.
 - If a Hugging Face pull fails with a `realm host` mismatch, update Ollama to the latest stable Windows release and retry. This is an Ollama registry redirect issue, not a JARVIS launcher issue ([Ollama issue #15661](https://github.com/ollama/ollama/issues/15661)).
+- Run tests from the project root with `.venv\\Scripts\\python.exe -m unittest discover -s tests`.
 - The first Whisper use downloads the selected speech model and may take a while.
 - If optional voice packages fail on Python 3.14, install Python 3.12 and create a compatible environment.
 - If an app does not expose accessible UI controls, JARVIS may be unable to inspect or operate it.
