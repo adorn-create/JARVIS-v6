@@ -104,7 +104,7 @@ def diagnostics():
     chat_model = os.getenv("OLLAMA_MODEL", "").strip()
     vision_model = os.getenv("OLLAMA_VISION_MODEL", "").strip()
     def present(model):
-        return bool(model) and any(name == model or name.split(":")[0] == model.split(":")[0] for name in installed)
+        return bool(model) and any(name == model or (":" not in model and name == model + ":latest") for name in installed)
     chat_ready = present(chat_model)
     vision_ready = present(vision_model)
     return {
