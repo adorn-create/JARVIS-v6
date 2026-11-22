@@ -21,78 +21,22 @@ if (Test-Path $FilePath) {
     $resolvedFilePath = (Get-Command $FilePath -ErrorAction Stop).Source
 }
 
-$script:LandMasses = @(
-    @{ Longitude = -108; Latitude = 43; Width = 48; Height = 31 },
-    @{ Longitude = -82; Latitude = 12; Width = 20; Height = 19 },
-    @{ Longitude = -60; Latitude = -18; Width = 25; Height = 42 },
-    @{ Longitude = -43; Latitude = 73; Width = 17; Height = 14 },
-    @{ Longitude = 26; Latitude = 53; Width = 39; Height = 22 },
-    @{ Longitude = 20; Latitude = 5; Width = 34; Height = 49 },
-    @{ Longitude = 77; Latitude = 47; Width = 76; Height = 31 },
-    @{ Longitude = 108; Latitude = 13; Width = 31; Height = 22 },
-    @{ Longitude = 135; Latitude = -25; Width = 22; Height = 17 },
-    @{ Longitude = 0; Latitude = -81; Width = 150; Height = 8 }
-)
-
-function New-GlobeFrame {
-    param([double]$Rotation)
-
-    $radiusY = 9
-    $radiusX = 18
-    $rows = New-Object 'System.Collections.Generic.List[string]'
-    for ($y = -$radiusY; $y -le $radiusY; $y++) {
-        $ny = $y / [double]$radiusY
-        $row = New-Object System.Text.StringBuilder
-        for ($x = -$radiusX; $x -le $radiusX; $x++) {
-            $nx = $x / [double]$radiusX
-            $depthSquared = 1.0 - ($nx * $nx) - ($ny * $ny)
-            if ($depthSquared -lt 0) {
-                [void]$row.Append(" ")
-                continue
-            }
-
-            $nz = [Math]::Sqrt($depthSquared)
-            $latitude = [Math]::Asin($ny)
-            $longitude = [Math]::Atan2($nx, $nz) + ($Rotation * [Math]::PI / 180.0)
-            $latitudeDegrees = $latitude * 180.0 / [Math]::PI
-            $longitudeDegrees = (($longitude * 180.0 / [Math]::PI) % 360.0)
-            if ($longitudeDegrees -gt 180) { $longitudeDegrees -= 360 }
-            if ($longitudeDegrees -lt -180) { $longitudeDegrees += 360 }
-
-            $isLand = $false
-            foreach ($mass in $script:LandMasses) {
-                $longitudeDistance = [Math]::Abs($longitudeDegrees - $mass.Longitude)
-                if ($longitudeDistance -gt 180) { $longitudeDistance = 360 - $longitudeDistance }
-                $horizontal = $longitudeDistance / $mass.Width
-                $vertical = ($latitudeDegrees - $mass.Latitude) / $mass.Height
-                if (($horizontal * $horizontal) + ($vertical * $vertical) -le 1) {
-                    $isLand = $true
-                    break
-                }
-            }
-
-            $illumination = (-0.45 * $nx) - (0.35 * $ny) + (0.8 * $nz)
-            $latitudeLine = [Math]::Abs([Math]::Sin($latitude * 6.0)) -lt 0.09
-            $longitudeLine = [Math]::Abs([Math]::Sin($longitude * 4.0)) -lt 0.07
-            if ($nz -lt 0.16) {
-                $character = "."
-            } elseif ($latitudeLine -or $longitudeLine) {
-                if ($illumination -gt 0.05) { $character = "+" } else { $character = ":" }
-            } elseif ($isLand) {
-                if ($illumination -gt 0.1) { $character = "#" } else { $character = "+" }
-            } elseif ($illumination -gt 0.55) {
-                $character = "."
-            } elseif ($illumination -gt -0.15) {
-                $character = ":"
-            } else {
-                $character = "'"
-            }
-            [void]$row.Append($character)
-        }
-        [void]$rows.Add("        " + $row.ToString())
+$globeFramesPath = Join-Path $PSScriptRoot "setup_globe_frames.txt"
+$globeData = [System.IO.File]::ReadAllText($globeFramesPath) -replace '(?:\r?\n)+$', ''
+$script:GlobeFrames = @($globeData -split '(?:\r?\n){2,}')
+if ($script:GlobeFrames.Count -ne 60) {
+    throw "Expected 60 globe animation frames in $globeFramesPath."
+}
+foreach ($frame in $script:GlobeFrames) {
+    $frameLines = $frame -split '\r?\n'
+    if ($frameLines.Count -ne 27) {
+        throw "Invalid globe animation frame in $globeFramesPath."
     }
-
-    return $rows
+    foreach ($line in $frameLines) {
+        if ($line.Length -ne 64) {
+            throw "Invalid globe animation frame width in $globeFramesPath."
+        }
+    }
 }
 
 $process = $null
@@ -121,14 +65,13 @@ try {
         if ($showGlobe) {
             try {
                 [Console]::SetCursorPosition(0, 0)
-                $rotation = ($frameIndex * 6) % 360
-                $lines = @(New-GlobeFrame -Rotation $rotation)
+                $frame = $script:GlobeFrames[$frameIndex % $script:GlobeFrames.Count]
+                $lines = $frame -split '\r?\n'
                 foreach ($line in $lines) {
-                    Write-Host $line.PadRight(60) -ForegroundColor Green
+                    Write-Host ("    " + $line) -ForegroundColor Green
                 }
-                Write-Host ("  J.A.R.V.I.S. // LOCAL SETUP".PadRight(60)) -ForegroundColor DarkGreen
-                Write-Host ("  STATUS: {0}".PadRight(60) -f $Label) -ForegroundColor Cyan
-                Write-Host ("  OUTPUT HIDDEN // LOGS: logs\setup-{0}-*.log".PadRight(60)) -ForegroundColor DarkGray
+                Write-Host ("  J.A.R.V.I.S. // STATUS: {0}".PadRight(68) -f $Label) -ForegroundColor Cyan
+                Write-Host ("  OUTPUT HIDDEN // LOGS: logs\setup-$LogName-*.log".PadRight(68)) -ForegroundColor DarkGray
             } catch {
                 $showGlobe = $false
             }
