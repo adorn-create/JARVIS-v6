@@ -15,6 +15,7 @@ class HUD:
         on_stop_speaking,
         on_toggle_wake,
         on_toggle_face,
+        on_toggle_gestures,
     ):
         self._tk_thread = threading.current_thread()
         self.on_send = on_send
@@ -22,6 +23,7 @@ class HUD:
         self._mic_level = 0.0
         self._wake_enabled = False
         self._face_enabled = False
+        self._gestures_enabled = False
         self.root = tk.Tk()
         self.root.title("J.A.R.V.I.S. | Desktop AI")
         self.root.geometry("960x680")
@@ -86,6 +88,8 @@ class HUD:
             font=("Segoe UI", 9),
         )
         self.face_status.pack(anchor="w", pady=(2, 0))
+        self.gesture_status = tk.Label(title_box, text="HAND GESTURES OFF", fg="#93b9cc", bg="#07111d", font=("Segoe UI", 9))
+        self.gesture_status.pack(anchor="w", pady=(2, 0))
 
         self.log = tk.Text(
             self.root,
@@ -126,6 +130,11 @@ class HUD:
             controls,
             "FACE DETECTION: OFF",
             lambda: on_toggle_face(not self._face_enabled),
+        )
+        self._gesture_button = self._button(
+            controls,
+            "GESTURES: OFF",
+            lambda: on_toggle_gestures(not self._gestures_enabled),
         )
 
         mic_row = tk.Frame(self.root, bg="#07111d")
@@ -227,6 +236,25 @@ class HUD:
         if "OFF" in text:
             color = "#93b9cc"
         self.face_status.configure(text=text, fg=color)
+
+    def set_gesture_state(self, enabled):
+        self._gestures_enabled = bool(enabled)
+        self._gesture_button.configure(
+            text="GESTURES: ON" if enabled else "GESTURES: OFF",
+            fg="#ffd166" if enabled else "#8ee8ff",
+        )
+        self.set_gesture_status("HAND GESTURES STARTING" if enabled else "HAND GESTURES OFF")
+
+    def set_gesture_status(self, text):
+        text = str(text)
+        color = "#ff7585" if "ERROR" in text else "#ffd166"
+        if "OFF" in text:
+            color = "#93b9cc"
+        self.gesture_status.configure(text=text, fg=color)
+
+    def set_gesture(self, label):
+        if self._gestures_enabled:
+            self.set_gesture_status(f"GESTURE • {label}")
 
     def confirm_action(self, description):
         if threading.current_thread() is self._tk_thread:

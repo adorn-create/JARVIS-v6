@@ -1,3 +1,4 @@
+import argparse
 import json
 import logging
 import os
@@ -121,6 +122,8 @@ class Controller:
         self.wake_enabled = False
         self.face_detector = None
         self.face_detection_enabled = False
+        self.gesture_monitor = None
+        self.gestures_enabled = False
         self._shutting_down = False
         self.hud.root.protocol("WM_DELETE_WINDOW", self.shutdown)
 
@@ -313,6 +316,64 @@ class Controller:
         self.hud.set_face_status("CAMERA ERROR • SEE DETAILS")
         self.hud.add("ERROR", f"Face detection unavailable: {error}")
 
+    def toggle_gestures(self, enabled):
+        if self._shutting_down:
+            return
+        if not enabled:
+            self.gestures_enabled = False
+            self.hud.set_gesture_state(False)
+            if self.gesture_monitor:
+                threading.Thread(target=self._stop_gestures, daemon=True).start()
+            return
+        if not self.hud.confirm_action(
+            "Enable local hand-gesture recognition using the camera? "
+            "JARVIS will display recognized gestures only; gestures will not "
+            "trigger computer actions or approve requests. Camera remains active "
+            "until you turn recognition off or close JARVIS."
+        ):
+            self.hud.set_gesture_state(False)
+            return
+        # Avoid two monitors competing for the same camera.
+        if self.face_detector and self.face_detection_enabled:
+            self.face_detection_enabled = False
+            self.hud.set_face_state(False)
+            if not self.face_detector.stop(wait=True, timeout=5):
+                self.hud.set_face_status("CAMERA STILL CLOSING • PLEASE WAIT")
+                self.hud.set_gesture_state(False)
+                return
+        try:
+            from hand_gestures import HandGestureMonitor
+            if self.gesture_monitor is None:
+                self.gesture_monitor = HandGestureMonitor(
+                    on_gesture=lambda label: self.hud.dispatch(self.hud.set_gesture, label),
+                    on_status=lambda status: self.hud.dispatch(self.hud.set_gesture_status, status),
+                    on_error=lambda error: self.hud.dispatch(self._gesture_error, error),
+                )
+            self.gestures_enabled = True
+            self.hud.set_gesture_state(True)
+            self.gesture_monitor.start()
+        except Exception as exc:
+            self._gesture_error(str(exc))
+
+    def _stop_gestures(self):
+        try:
+            stopped = self.gesture_monitor.stop(wait=True, timeout=5)
+        except Exception as exc:
+            LOG.exception("hand-gesture camera stop failed")
+            self.hud.dispatch(self._gesture_error, str(exc))
+            return
+        if stopped:
+            self.hud.dispatch(self.hud.set_gesture_status, "HAND GESTURES OFF")
+        else:
+            self.hud.dispatch(self.hud.set_gesture_status, "CAMERA STILL CLOSING • PLEASE WAIT")
+
+    def _gesture_error(self, error):
+        LOG.error("hand gesture recognition unavailable: %s", error)
+        self.gestures_enabled = False
+        self.hud.set_gesture_state(False)
+        self.hud.set_gesture_status("GESTURE ERROR • SEE DETAILS")
+        self.hud.add("ERROR", f"Hand gestures unavailable: {error}")
+
     def shutdown(self):
         if self._shutting_down:
             return
@@ -339,6 +400,12 @@ class Controller:
                             )
                     except Exception:
                         LOG.exception("face-detection camera shutdown failed")
+                if self.gesture_monitor:
+                    try:
+                        if not self.gesture_monitor.stop(wait=True, timeout=5):
+                            LOG.error("hand-gesture camera did not stop before JARVIS closed")
+                    except Exception:
+                        LOG.exception("hand-gesture camera shutdown failed")
                 if self.voice:
                     try:
                         self.voice.stop()
@@ -444,6 +511,35 @@ def cli():
 
 
 def main():
+    parser = argparse.ArgumentParser(description="JARVIS desktop assistant")
+    parser.add_argument("--enroll-face", nargs="?", const="Owner", help="enroll Owner first, or add a named user")
+    parser.add_argument("--remove-face", help="remove an enrolled user (owner authentication required)")
+    parser.add_argument("--list-faces", action="store_true", help="list enrolled face profile names")
+    args = parser.parse_args()
+    if args.enroll_face is not None or args.remove_face or args.list_faces:
+        from face_auth import enroll, remove_user, list_users
+        if args.enroll_face is not None:
+            enroll(args.enroll_face)
+        elif args.remove_face:
+            remove_user(args.remove_face)
+        else:
+            list_users()
+        return
+
+    # Once any profile exists, face unlock is required on every startup.
+    from face_auth import DATA_FILE, USERS_FILE, authenticate
+    if DATA_FILE.exists() and USERS_FILE.exists():
+        print("JARVIS face lock enabled. Authenticate to continue.")
+        try:
+            if not authenticate():
+                print("Authentication failed. JARVIS remains locked.")
+                return
+        except Exception as exc:
+            print(f"Face authentication error. JARVIS remains locked: {exc}")
+            return
+    else:
+        print("WARNING: Face lock is not enrolled. JARVIS is not face-locked.")
+        print(r"Enroll owner first: .venv\Scripts\python.exe src\main.py --enroll-face")
     init_db()
     try:
         from hud import HUD
@@ -456,6 +552,7 @@ def main():
             lambda: holder["controller"].stop_speaking(),
             lambda enabled: holder["controller"].toggle_wake(enabled),
             lambda enabled: holder["controller"].toggle_face_detection(enabled),
+            lambda enabled: holder["controller"].toggle_gestures(enabled),
         )
         controller = Controller(hud)
         holder["controller"] = controller
